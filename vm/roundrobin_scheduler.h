@@ -80,7 +80,8 @@ typedef struct {
 
 execution_record *rr_scheduler_run(rr_scheduler *scheduler, call_interpreter_t call);
 void free_execution_record(execution_record *record);
-void rr_scheduler_enumerate_gc_roots(rr_scheduler *scheduler, object **stbds_vector);
+// Appending may reallocate the root vector; update the caller-owned pointer.
+void rr_scheduler_enumerate_gc_roots(rr_scheduler *scheduler, object ***stbds_vector);
 
 void monitor_notify_one(rr_scheduler *scheduler, obj_header *monitor);
 void monitor_notify_all(rr_scheduler *scheduler, obj_header *monitor);

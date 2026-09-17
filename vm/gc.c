@@ -233,7 +233,7 @@ static void major_gc_enumerate_gc_roots(gc_ctx *ctx) {
 
   // Scheduler roots
   if (vm->scheduler) {
-    rr_scheduler_enumerate_gc_roots(vm->scheduler, ctx->roots);
+    rr_scheduler_enumerate_gc_roots(vm->scheduler, &ctx->roots);
   }
 }
 

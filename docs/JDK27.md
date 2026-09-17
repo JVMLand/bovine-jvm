@@ -60,3 +60,18 @@ The browser smoke test covers Java 27 class files, startup, primitive/array clas
 metadata, references, Unicode concatenation, collections, streams, lambdas,
 MethodHandles, reflection, garbage collection, SHA-256, and dates. Jaspera runs its own compiler and debugger regression
 tests against the integrated runtime.
+
+## Scheduler GC regression
+
+The JDK 27 compiler workload exposed an existing scheduler bug: appending queued
+arguments could reallocate the root vector without updating the collector's
+pointer. `test/scheduler-roots.c` forces growth from both empty and full vectors
+and verifies that queued argument roots can be rewritten in place.
+
+After building `build-jdk27`, run this standalone WASM test (it does not execute
+Java, so the normal interpreter postprocessing is unnecessary):
+
+```sh
+emcc test/scheduler-roots.c build-jdk27/libbjvm_static.a build-jdk27/vendor/libstb_ds.a -Ivm -Ibuild-jdk27/vm -Ivendor -std=c23 -sUSE_ZLIB=1 -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=5000000 -sWARN_ON_UNDEFINED_SYMBOLS=0 -o .cache/scheduler-roots.cjs
+node .cache/scheduler-roots.cjs
+```
