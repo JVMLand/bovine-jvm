@@ -321,7 +321,7 @@ bool is_nth_arg_reference(cp_method *method, int i) {
   return i == 0 || method->descriptor->args[i - 1].repr_kind == TYPE_KIND_REFERENCE;
 }
 
-void rr_scheduler_enumerate_gc_roots(rr_scheduler *scheduler, object **stbds_vector) {
+void rr_scheduler_enumerate_gc_roots(rr_scheduler *scheduler, object ***stbds_vector) {
   // Iterate through all pending_calls and add object arguments as roots
   impl *I = scheduler->_impl;
   for (int i = 0; i < arrlen(I->round_robin); i++) {
@@ -330,7 +330,7 @@ void rr_scheduler_enumerate_gc_roots(rr_scheduler *scheduler, object **stbds_vec
       pending_call *call = &info->call_queue[j];
       for (int k = 0; k < method_argc(call->call.args.method); k++) {
         if (is_nth_arg_reference(call->call.args.method, k)) {
-          arrput(stbds_vector, &call->call.args.args[k].obj);
+          arrput(*stbds_vector, &call->call.args.args[k].obj);
         }
       }
     }
