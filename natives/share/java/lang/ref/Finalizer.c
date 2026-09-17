@@ -7,11 +7,14 @@ DECLARE_NATIVE("java/lang/ref", Finalizer, isFinalizationEnabled, "()Z") { retur
 
 DECLARE_NATIVE("java/lang/ref", Reference, refersTo0, "(Ljava/lang/Object;)Z") {
   DCHECK(argc == 1);
-  struct native_Reference *ref = (void *)obj;
+  struct native_Reference *ref = (void *)obj->obj;
   return (stack_value){.i = ref->referent == args[0].handle->obj};
 }
 
-DECLARE_NATIVE("java/lang/ref", Reference, clear0, "()V") { return value_null(); }
+DECLARE_NATIVE("java/lang/ref", Reference, clear0, "()V") {
+  ((struct native_Reference *)obj->obj)->referent = nullptr;
+  return value_null();
+}
 
 DECLARE_ASYNC_NATIVE("java/lang/ref", Reference, waitForReferencePendingList, "()V",
                      locals(rr_wakeup_info wakeup_info;), invoked_methods()) {
@@ -31,4 +34,17 @@ DECLARE_NATIVE("java/lang/ref", Reference, getAndClearReferencePendingList, "()L
   object list = (object)thread->vm->reference_pending_list;
   thread->vm->reference_pending_list = nullptr;
   return (stack_value){.obj = list};
+}
+
+// JDK 27 delegates Reference.get() to the VM.
+DECLARE_NATIVE("java/lang/ref", Reference, get0, "()Ljava/lang/Object;") {
+  return (stack_value){.obj = ((struct native_Reference *)obj->obj)->referent};
+}
+
+DECLARE_NATIVE("java/lang/ref", PhantomReference, refersTo0, "(Ljava/lang/Object;)Z") {
+  return Reference_refersTo0_cb0(thread, obj, args, argc);
+}
+
+DECLARE_NATIVE("java/lang/ref", PhantomReference, clear0, "()V") {
+  return Reference_clear0_cb0(thread, obj, args, argc);
 }

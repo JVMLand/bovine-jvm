@@ -27,6 +27,19 @@ vm *ffi_create_vm(const char *classpath, size_t heap_size, write_bytes stdout_, 
 }
 
 EMSCRIPTEN_KEEPALIVE
+vm *ffi_create_vm_with_runtime(const char *classpath, size_t heap_size, write_bytes stdout_, write_bytes stderr_,
+                               const char *runtime_classpath, const char *java_home) {
+  vm_options options = default_vm_options();
+  options.classpath = (slice){(char *)classpath, (int)strlen(classpath)};
+  options.runtime_classpath = (slice){(char *)runtime_classpath, (int)strlen(runtime_classpath)};
+  options.java_home = (slice){(char *)java_home, (int)strlen(java_home)};
+  options.heap_size = heap_size;
+  options.write_stdout = stdout_;
+  options.write_stderr = stderr_;
+  return create_vm(options);
+}
+
+EMSCRIPTEN_KEEPALIVE
 vm_thread *ffi_create_thread(vm *vm) {
   vm_thread *thr = create_main_thread(vm, default_thread_options());
   return thr;

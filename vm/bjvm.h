@@ -417,6 +417,7 @@ typedef struct vm {
 
   // Passed to the system classloader via the system property "java.class.path"
   heap_string application_classpath;
+  heap_string java_home;
 
   // Main thread group
   obj_header *main_thread_group;
@@ -517,6 +518,8 @@ typedef struct {
   // Classpath for built-in files, e.g. rt.jar. Must have definitions for
   // Object.class, etc.
   slice runtime_classpath;
+  // Runtime resource directory; defaults to ./jdk23.
+  slice java_home;
   // Colon-separated custom classpath.
   slice classpath;
 } vm_options;

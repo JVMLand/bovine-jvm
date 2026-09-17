@@ -528,6 +528,7 @@ vm_options default_vm_options() {
   vm_options options = {nullptr};
   options.heap_size = 1 << 26;
   options.runtime_classpath = get_default_boot_cp();
+  options.java_home = STR("./jdk23");
 
   return options;
 }
@@ -587,6 +588,7 @@ vm *create_vm(const vm_options options) {
 
   char *error = init_classpath(&vm->bootstrap_classpath, classpath);
   vm->application_classpath = make_heap_str_from(options.classpath);
+  vm->java_home = make_heap_str_from(options.java_home.len ? options.java_home : STR("./jdk23"));
   if (error) {
     fprintf(stderr, "Classpath error: %s", error);
     free(error);
@@ -683,6 +685,7 @@ void free_vm(vm *vm) {
 
   free_classpath(&vm->bootstrap_classpath);
   free_heap_str(vm->application_classpath);
+  free_heap_str(vm->java_home);
   free(cached_classes(vm));
   // Free all threads, iterate backwards because they remove themselves
   for (int i = arrlen(vm->active_threads) - 1; i >= 0; --i) {
@@ -2108,6 +2111,16 @@ struct native_Class *get_class_mirror(vm_thread *thread, classdesc *cd) {
 
   if (class_mirror) {
     class_mirror->reflected_class = cd;
+    // Recent JDKs implement these Class queries in Java using VM-set fields.
+    const char *names[] = {"primitive", "modifiers", "classFileAccessFlags"};
+    const char *types[] = {"Z", "C", "C"};
+    int values[] = {cd->kind == CD_KIND_PRIMITIVE, cd->access_flags, cd->access_flags};
+    for (int i = 0; i < 3; ++i) {
+      cp_field *f = field_lookup(java_lang_Class, (slice){(char *)names[i], (int)strlen(names[i])},
+                                (slice){(char *)types[i], 1});
+      if (f) store_stack_value((char *)class_mirror + f->byte_offset,
+                              (stack_value){.i = values[i]}, f->parsed_descriptor.repr_kind);
+    }
     if (cd->module) {
       class_mirror->module = cd->module->reflection_object;
     }

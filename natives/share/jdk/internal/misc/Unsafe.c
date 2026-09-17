@@ -55,6 +55,24 @@ DECLARE_NATIVE("jdk/internal/misc", Unsafe, objectFieldOffset1, "(Ljava/lang/Cla
   return (stack_value){.l = result};
 }
 
+// JDK 27 uses negative results to distinguish missing and static fields.
+DECLARE_NATIVE("jdk/internal/misc", Unsafe, knownObjectFieldOffset0, "(Ljava/lang/Class;Ljava/lang/String;)J") {
+  classdesc *desc = unmirror_class(args[0].handle->obj);
+  heap_string name;
+  if (read_string_to_utf8(thread, &name, args[1].handle->obj))
+    return value_null();
+  s64 offset = -1;
+  for (int i = 0; i < desc->fields_count; ++i) {
+    cp_field *field = &desc->fields[i];
+    if (utf8_equals_utf8(field->name, hslc(name))) {
+      offset = (field->access_flags & ACCESS_STATIC) ? -2 : field->byte_offset;
+      break;
+    }
+  }
+  free_heap_str(name);
+  return (stack_value){.l = offset};
+}
+
 DECLARE_NATIVE("jdk/internal/misc", Unsafe, staticFieldOffset0, "(Ljava/lang/reflect/Field;)J") {
   DCHECK(argc == 1);
   cp_field *reflect_field = *unmirror_field(args[0].handle->obj);
@@ -410,5 +428,17 @@ DECLARE_NATIVE("jdk/internal/misc", Unsafe, copyMemory0, "(Ljava/lang/Object;JLj
 DECLARE_NATIVE("jdk/internal/misc", Unsafe, setMemory0, "(Ljava/lang/Object;JJB)V") {
   assert(argc == 4);
   memset((void *)((uintptr_t)args[0].handle->obj + args[1].l), args[3].i, args[2].l);
+  return value_null();
+}
+
+DECLARE_NATIVE("jdk/internal/misc", Unsafe, getChar, "(Ljava/lang/Object;J)C") {
+  u16 result;
+  memcpy(&result, (void *)((uintptr_t)args[0].handle->obj + args[1].l), sizeof(result));
+  return (stack_value){.i = result};
+}
+
+DECLARE_NATIVE("jdk/internal/misc", Unsafe, putChar, "(Ljava/lang/Object;JC)V") {
+  u16 value = args[2].i;
+  memcpy((void *)((uintptr_t)args[0].handle->obj + args[1].l), &value, sizeof(value));
   return value_null();
 }
