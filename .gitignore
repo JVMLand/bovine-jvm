@@ -18,3 +18,4 @@ js/pages/public/assets/*.jar
 
 .cache/
 build-jdk27/
+build-debugger/

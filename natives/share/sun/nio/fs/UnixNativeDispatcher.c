@@ -158,6 +158,20 @@ DECLARE_NATIVE("sun/nio/fs", UnixNativeDispatcher, access0, "(JI)I") {
   return value_null();
 }
 
+// Return the IOStatus values expected by the Java NIO retry/EOF handling.
+DECLARE_NATIVE("sun/nio/ch", UnixFileDispatcherImpl, read0, "(Ljava/io/FileDescriptor;JI)I") {
+  int fd = LoadFieldInt(args[0].handle->obj, "fd");
+  int length = args[2].i;
+  if (length == 0) return (stack_value){.i = 0};
+  ssize_t count = read(fd, (void *)(uintptr_t)args[1].l, length);
+  if (count > 0) return (stack_value){.i = (s32)count};
+  if (count == 0) return (stack_value){.i = -1};
+  if (errno == EAGAIN || errno == EWOULDBLOCK) return (stack_value){.i = -2};
+  if (errno == EINTR) return (stack_value){.i = -3};
+  raise_vm_exception(thread, STR("java/io/IOException"), STR("Error reading file channel"));
+  return (stack_value){.i = -5};
+}
+
 DECLARE_NATIVE("sun/nio/ch", UnixFileDispatcherImpl, size0, "(Ljava/io/FileDescriptor;)J") {
   DCHECK(args[0].handle->obj);
   int fd = LoadFieldInt(args[0].handle->obj, "fd");

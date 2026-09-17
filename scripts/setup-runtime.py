@@ -30,8 +30,9 @@ for system in sorted({'linux', host}):
         partial = archive.with_suffix(archive.suffix+'.part')
         print('Downloading '+BASE+name, flush=True)
         urllib.request.urlretrieve(BASE+name, partial)
-        if hashlib.file_digest(partial.open('rb'), 'sha256').hexdigest() != digest:
-            raise RuntimeError('Checksum mismatch: '+name)
+        with partial.open('rb') as stream:
+            if hashlib.file_digest(stream, 'sha256').hexdigest() != digest:
+                raise RuntimeError('Checksum mismatch: '+name)
         partial.replace(archive)
     with archive.open('rb') as stream:
         if hashlib.file_digest(stream, 'sha256').hexdigest() != digest:

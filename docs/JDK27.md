@@ -53,9 +53,10 @@ new Java fields are allocated after it. Regenerate their table with
 `python codegen/native_layout.py` after editing `vm/natives_gen.h`.
 The runtime also reads SystemProps indices from class-file constants and initializes
 the Class metadata now queried by Java code. New native entry points cover Unsafe,
-Class.forName, references, and Unix file attributes.
+Class.forName, references, Unix file attributes and channel reads. ContinuationSupport
+reports that Loom continuations are unavailable.
 
 The browser smoke test covers Java 27 class files, startup, primitive/array class
 metadata, references, Unicode concatenation, collections, streams, lambdas,
-MethodHandles, and dates. Jaspera runs its own compiler and debugger regression
+MethodHandles, reflection, garbage collection, SHA-256, and dates. Jaspera runs its own compiler and debugger regression
 tests against the integrated runtime.
