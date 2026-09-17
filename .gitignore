@@ -15,3 +15,6 @@ js/pages/dist/assets/*.java
 js/pages/public/assets/*.class
 js/pages/public/assets/*.jar
 .DS_Store
+
+.cache/
+build-jdk27/

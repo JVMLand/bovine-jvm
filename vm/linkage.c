@@ -7,6 +7,7 @@
 #include <vtable.h>
 
 #include <bjvm.h>
+#include "native_layout.h"
 
 // Credit: https://stackoverflow.com/a/77159291/13458117
 #define SIZEOF_POINTER (UINTPTR_MAX / 255 % 255)
@@ -198,6 +199,7 @@ int link_class(vm_thread *thread, classdesc *cd) {
   nonstatic_offset += padding;
 
   bool must_have_C_layout = hash_table_contains(&thread->vm->class_padding, cd->name.chars, cd->name.len);
+  if (must_have_C_layout) nonstatic_offset = native_layout_size(cd->name);
   int *order = nullptr;
   if (!must_have_C_layout)
     order = reorder_fields_for_compactness(cd->fields, cd->fields_count);
@@ -206,8 +208,11 @@ int link_class(vm_thread *thread, classdesc *cd) {
   for (int field_i = 0; field_i < cd->fields_count; ++field_i) {
     cp_field *field = cd->fields + (must_have_C_layout ? field_i : order[field_i]);
     type_kind kind = field->parsed_descriptor.repr_kind;
-    field->byte_offset = field->access_flags & ACCESS_STATIC ? allocate_field(&static_offset, kind)
-                                                             : allocate_field(&nonstatic_offset, kind);
+    size_t fixed_offset = must_have_C_layout && !(field->access_flags & ACCESS_STATIC)
+                              ? native_field_offset(cd->name, field) : SIZE_MAX;
+    field->byte_offset = fixed_offset != SIZE_MAX ? fixed_offset
+                         : field->access_flags & ACCESS_STATIC ? allocate_field(&static_offset, kind)
+                                                               : allocate_field(&nonstatic_offset, kind);
     // printf("Allocating field %.*s for class %.*s at %zu\n", fmt_slice(field->name), fmt_slice(cd->name),
     //         field->byte_offset);
     if (kind == TYPE_KIND_REFERENCE) {
