@@ -2676,10 +2676,22 @@ __attribute__((always_inline)) static s64 entry_notco_impl(vm_thread *thread, st
   float float_tos = (sp_ - 1)->f;
 
   while (true) {
-    if (check_stepping && unlikely(thread->is_single_stepping)) {
+    bytecode_insn *executed_code = code;
+    insn_code_kind executed_kind = code->kind;
+    if (check_stepping && unlikely(thread->is_single_stepping) && handler_i && handler_i < RETVAL_ASYNC_SUSPEND) {
       standard_debugger *dbg = get_active_debugger(thread->vm);
       DCHECK(dbg && "Debugger not active");
       frame->program_counter = code - frame->code;
+      // The interpreter caches TOS in registers. Publish it before suspending,
+      // so resumption, GC and debugger snapshots all see the same frame.
+      if (frame->insn_index_to_sd[frame->program_counter]) {
+        switch (handler_i & 3) {
+        case TOS_INT: (sp_ - 1)->l = int_tos; break;
+        case TOS_FLOAT: (sp_ - 1)->f = float_tos; break;
+        case TOS_DOUBLE: (sp_ - 1)->d = double_tos; break;
+        default: break;
+        }
+      }
       bool should_pause = dbg->should_pause(dbg, thread, frame);
       if (should_pause) {
         debugger_pause(thread, frame);
@@ -2754,6 +2766,10 @@ __attribute__((always_inline)) static s64 entry_notco_impl(vm_thread *thread, st
       break;
     }
     }
+    // Resolution and TOS forwarding may redispatch the same instruction.
+    // A self-targeting goto, however, really is a completed instruction.
+    if (check_stepping && !thread->stack.synchronous_depth && (code != executed_code || executed_kind == insn_goto))
+      thread->debugger_instruction_serial++;
   }
 }
 
@@ -2784,9 +2800,17 @@ static exception_table_entry *find_exception_handler(vm_thread *thread, stack_fr
 
     if (ent->start_insn <= pc_ && pc_ < ent->end_insn) {
       if (ent->catch_type) {
+        // Class loading must not inherit the exception currently being matched.
+        // Keep it rooted while resolving a catch type (which may allocate/GC).
+        handle *pending = make_handle(thread, thread->current_exception);
+        thread->current_exception = nullptr;
         int error = resolve_class(thread, ent->catch_type) || link_class(thread, ent->catch_type->classdesc);
+        error = error || thread->current_exception != nullptr;
+        if (!error)
+          thread->current_exception = pending->obj;
+        drop_handle(thread, pending);
         if (error)
-          continue; // can happen if the current classloader != verifier classloader?
+          return nullptr; // propagate the resolution failure to the caller
       }
 
       if (!ent->catch_type || instanceof(exception_type, ent->catch_type->classdesc)) {

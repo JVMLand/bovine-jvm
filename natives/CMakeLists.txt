@@ -1,3 +1,4 @@
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_library(natives OBJECT)
 target_link_libraries(natives PRIVATE vm)
 
@@ -26,7 +27,7 @@ list(JOIN NATIVES_FILES " " NATIVES_FILES_STR)
 set(out_file "${CMAKE_BINARY_DIR}/natives_registration.c")
 add_custom_command(
         OUTPUT  ${out_file}
-        COMMAND ${CMAKE_SOURCE_DIR}/codegen/scan_native_declarations.py ${NATIVES_FILES_STR} > ${out_file}
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/codegen/scan_native_declarations.py ${NATIVES_FILES_STR} > ${out_file}
         DEPENDS ${NATIVES_FILES} ${CMAKE_SOURCE_DIR}/codegen/scan_native_declarations.py
         COMMENT "Postprocessing natives files => ${out_file}"
         VERBATIM

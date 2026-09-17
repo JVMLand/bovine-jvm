@@ -8,8 +8,10 @@ set(CMAKE_CXX_STANDARD 23)
 
 list(APPEND CMAKE_MODULE_PATH ${bjvm_SOURCE_DIR}/cmake)
 
-include(Doctest)
 include(CTest)
+if(BUILD_TESTING)
+    include(Doctest)
+endif()
 include(AsanSupport)
 include(LtoSupport)
 include(PostprocessWasm)
