@@ -783,6 +783,7 @@ export class BovineVM<Classes> {
     pending: Function[] = [];  // hook here to be called every time the timeout fires
 
     scheduleTimeout(waitUs: number = 0) {
+        if ((this._module as any).jasperaDebugger?.paused) return;
         const module = this._module;
         if (this.waitingForYield > waitUs && this.timeout !== -1 as unknown as ReturnType<typeof setTimeout>) {
             clearTimeout(this.timeout);

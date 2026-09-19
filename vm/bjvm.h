@@ -661,6 +661,7 @@ typedef struct vm_thread {
   // Whether this thread is currently being debugged, AND the debugger should be consulted after the execution of
   // every bytecode instruction.
   bool is_single_stepping;
+  u32 debugger_instruction_serial;
   // Whether this thread is currently paused in the debugger
   bool paused_in_debugger;
 
