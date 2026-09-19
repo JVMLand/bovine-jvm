@@ -787,6 +787,7 @@ static void init_unsafe_constants(vm_thread *thread) {
 
 vm_thread *create_main_thread(vm *vm, thread_options options) {
   vm_thread *thr = calloc(1, sizeof(vm_thread));
+  thr->is_single_stepping = vm->debugger != nullptr;
   arrput(vm->active_threads, thr);
 
   thr->vm = vm;
@@ -905,6 +906,7 @@ vm_thread *create_vm_thread(vm *vm, vm_thread *creator_thread, struct native_Thr
   handle *java_thread = make_handle(creator_thread, (obj_header *)thread_obj);
 
   vm_thread *thr = calloc(1, sizeof(vm_thread));
+  thr->is_single_stepping = vm->debugger != nullptr;
   arrput(vm->active_threads, thr);
 
   thr->vm = vm;
