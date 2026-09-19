@@ -1,0 +1,22 @@
+{
+  "name": "bovine-jvm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bovine JVM sources for downstream WebAssembly builds",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JVMLand/bovine-jvm.git"
+  },
+  "files": [
+    "CMakeLists.txt",
+    "cmake/",
+    "codegen/",
+    "natives/",
+    "vendor/",
+    "vm/",
+    "scripts/",
+    "js/bjvm2.ts",
+    "docs/"
+  ]
+}

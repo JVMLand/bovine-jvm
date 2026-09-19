@@ -76,3 +76,7 @@ Disambiguated constructors are called "<init>_$...". Yes, the syntax is gross.
 A function named `drop` is called `drop$` to avoid a collision with the `drop` function, which takes a handle and drops it from use (instead of automatic management).
 
 Variadic functions are not yet supported; the variadic argument is 
+
+## Use as a Git dependency
+
+Downstream projects can pin these sources with `"bovine-jvm": "github:JVMLand/bovine-jvm#<commit-sha>"` in `devDependencies` and commit their pnpm lockfile. The package includes the CMake sources, code generators, runtime setup scripts and TypeScript wrapper. It does not run installation hooks or include a prebuilt JVM or JDK. Build with CMake and Emscripten in a separate build directory, outside `node_modules`.
