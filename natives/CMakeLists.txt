@@ -23,12 +23,14 @@ if (APPLE)
     add_classes_root("darwin")
 endif()
 
-list(JOIN NATIVES_FILES " " NATIVES_FILES_STR)
+list(JOIN NATIVES_FILES "\n" NATIVES_FILE_LIST)
+set(native_file_list "${CMAKE_BINARY_DIR}/native-sources.txt")
+file(GENERATE OUTPUT "${native_file_list}" CONTENT "${NATIVES_FILE_LIST}\n")
 set(out_file "${CMAKE_BINARY_DIR}/natives_registration.c")
 add_custom_command(
         OUTPUT  ${out_file}
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/codegen/scan_native_declarations.py ${NATIVES_FILES_STR} > ${out_file}
-        DEPENDS ${NATIVES_FILES} ${CMAKE_SOURCE_DIR}/codegen/scan_native_declarations.py
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/codegen/scan_native_declarations.py --file-list ${native_file_list} --output ${out_file}
+        DEPENDS ${NATIVES_FILES} ${native_file_list} ${CMAKE_SOURCE_DIR}/codegen/scan_native_declarations.py
         COMMENT "Postprocessing natives files => ${out_file}"
         VERBATIM
 )
