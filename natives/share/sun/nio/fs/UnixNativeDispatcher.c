@@ -43,58 +43,61 @@ DECLARE_NATIVE("sun/nio/fs", UnixNativeDispatcher, getcwd, "()[B") {
   return (stack_value){.obj = array};
 }
 
-stack_value stat_impl(value *args) {
-  struct stat st;
-
-  if (!args[1].handle)
-    return value_null();
-
-  uintptr_t buf = args[0].l;
-  int result = stat((char *)buf, &st);
-  if (result)
-    return (stack_value){.i = errno};
-
-  obj_header *attrs = args[1].handle->obj;
-
+static void copy_stat_attributes(const struct stat *st, obj_header *attrs) {
 #define MapAttrLong(name, value) StoreFieldLong(attrs, (#name), value)
 #define MapAttrInt(name, value) StoreFieldInt(attrs, (#name), value)
-  MapAttrInt(st_mode, st.st_mode);
-  MapAttrLong(st_ino, st.st_ino);
-  MapAttrLong(st_dev, st.st_dev);
-  MapAttrLong(st_rdev, st.st_rdev);
-  MapAttrInt(st_nlink, st.st_nlink);
-  MapAttrInt(st_uid, st.st_uid);
-  MapAttrInt(st_gid, st.st_gid);
-  MapAttrLong(st_size, st.st_size);
+  MapAttrInt(st_mode, st->st_mode);
+  MapAttrLong(st_ino, st->st_ino);
+  MapAttrLong(st_dev, st->st_dev);
+  MapAttrLong(st_rdev, st->st_rdev);
+  MapAttrInt(st_nlink, st->st_nlink);
+  MapAttrInt(st_uid, st->st_uid);
+  MapAttrInt(st_gid, st->st_gid);
+  MapAttrLong(st_size, st->st_size);
 
 #ifdef __APPLE__
-  MapAttrLong(st_atime_sec, st.st_atime);
-  MapAttrLong(st_atime_nsec, st.st_atimensec);
+  MapAttrLong(st_atime_sec, st->st_atime);
+  MapAttrLong(st_atime_nsec, st->st_atimensec);
 
-  MapAttrLong(st_mtime_sec, st.st_mtime);
-  MapAttrLong(st_mtime_nsec, st.st_mtimensec);
+  MapAttrLong(st_mtime_sec, st->st_mtime);
+  MapAttrLong(st_mtime_nsec, st->st_mtimensec);
 
-  MapAttrLong(st_ctime_sec, st.st_ctime);
-  MapAttrLong(st_ctime_nsec, st.st_ctimensec);
+  MapAttrLong(st_ctime_sec, st->st_ctime);
+  MapAttrLong(st_ctime_nsec, st->st_ctimensec);
 #else
-  MapAttrLong(st_atime_sec, st.st_atim.tv_sec);
-  MapAttrLong(st_atime_nsec, st.st_atim.tv_nsec);
+  MapAttrLong(st_atime_sec, st->st_atim.tv_sec);
+  MapAttrLong(st_atime_nsec, st->st_atim.tv_nsec);
 
-  MapAttrLong(st_mtime_sec, st.st_mtim.tv_sec);
-  MapAttrLong(st_mtime_nsec, st.st_mtim.tv_nsec);
+  MapAttrLong(st_mtime_sec, st->st_mtim.tv_sec);
+  MapAttrLong(st_mtime_nsec, st->st_mtim.tv_nsec);
 
-  MapAttrLong(st_ctime_sec, st.st_ctim.tv_sec);
-  MapAttrLong(st_ctime_nsec, st.st_ctim.tv_nsec);
+  MapAttrLong(st_ctime_sec, st->st_ctim.tv_sec);
+  MapAttrLong(st_ctime_nsec, st->st_ctim.tv_nsec);
 #endif
 
 #ifdef __APPLE__
-  MapAttrLong(st_birthtime_sec, st.st_birthtime);
-  MapAttrLong(st_birthtime_nsec, st.st_birthtimensec);
+  MapAttrLong(st_birthtime_sec, st->st_birthtime);
+  MapAttrLong(st_birthtime_nsec, st->st_birthtimensec);
 #endif
 
 #undef MapAttrLong
 #undef MapAttrInt
 
+
+}
+
+stack_value stat_impl(value *args) {
+  struct stat st;
+  if (stat((char *)(uintptr_t)args[0].l, &st)) return (stack_value){.i = errno};
+  if (args[1].handle && args[1].handle->obj) copy_stat_attributes(&st, args[1].handle->obj);
+  return (stack_value){.i = 0};
+}
+
+DECLARE_NATIVE("sun/nio/fs", UnixNativeDispatcher, fstatat0, "(IJILsun/nio/fs/UnixFileAttributes;)I") {
+  struct stat st;
+  if (fstatat(args[0].i, (char *)(uintptr_t)args[1].l, &st, args[2].i))
+    return (stack_value){.i = errno};
+  if (args[3].handle && args[3].handle->obj) copy_stat_attributes(&st, args[3].handle->obj);
   return (stack_value){.i = 0};
 }
 
@@ -153,6 +156,20 @@ DECLARE_NATIVE("sun/nio/fs", UnixNativeDispatcher, access0, "(JI)I") {
 
   thread->current_exception = create_unix_exception(thread, errno);
   return value_null();
+}
+
+// Return the IOStatus values expected by the Java NIO retry/EOF handling.
+DECLARE_NATIVE("sun/nio/ch", UnixFileDispatcherImpl, read0, "(Ljava/io/FileDescriptor;JI)I") {
+  int fd = LoadFieldInt(args[0].handle->obj, "fd");
+  int length = args[2].i;
+  if (length == 0) return (stack_value){.i = 0};
+  ssize_t count = read(fd, (void *)(uintptr_t)args[1].l, length);
+  if (count > 0) return (stack_value){.i = (s32)count};
+  if (count == 0) return (stack_value){.i = -1};
+  if (errno == EAGAIN || errno == EWOULDBLOCK) return (stack_value){.i = -2};
+  if (errno == EINTR) return (stack_value){.i = -3};
+  raise_vm_exception(thread, STR("java/io/IOException"), STR("Error reading file channel"));
+  return (stack_value){.i = -5};
 }
 
 DECLARE_NATIVE("sun/nio/ch", UnixFileDispatcherImpl, size0, "(Ljava/io/FileDescriptor;)J") {

@@ -3,6 +3,10 @@ import MainModuleFactory, {MainModule} from "../build/bjvm_main";
 type BovineOSOptions = {
     // Location of JDK runtime artifacts
     runtimeUrl: string;
+    // Select the standard library independently of the application classpath.
+    javaHome?: string;
+    runtimeClasspath?: string;
+    runtimeFiles?: string[];
     // Download progress
     progress?: (loaded: number, total: number) => void;
     // Additional files to load from the runtime directory (e.g. jars)
@@ -645,9 +649,22 @@ export class BovineVM<Classes> {
         this.boundOnStderr = this.onStderr.bind(this);
         this.boundOnStdout = this.onStdout.bind(this);
 
-        this.ptr = this._module._ffi_create_vm(classpath, options.heapSize ?? DEFAULT_HEAP_SIZE,
-            this._module.addFunction(this.boundOnStdout, 'viii'), this._module.addFunction(this.boundOnStderr, 'viii'));
+        const encode = (text: string) => {
+            const bytes = new TextEncoder().encode(text);
+            const pointer = this._module._malloc(bytes.length + 1);
+            maybeOutOfMemory(pointer);
+            this._module.HEAPU8.set(bytes, pointer);
+            this._module.HEAPU8[pointer + bytes.length] = 0;
+            return pointer;
+        };
+        const runtimeClasspath = encode(os.options.runtimeClasspath ?? 'jdk23.jar');
+        const javaHome = encode(os.options.javaHome ?? 'jdk23');
+        this.ptr = this._module._ffi_create_vm_with_runtime(classpath, options.heapSize ?? DEFAULT_HEAP_SIZE,
+            this._module.addFunction(this.boundOnStdout, 'viii'), this._module.addFunction(this.boundOnStderr, 'viii'),
+            runtimeClasspath, javaHome);
         this._module._free(classpath);
+        this._module._free(runtimeClasspath);
+        this._module._free(javaHome);
         if (this.ptr === 0) {
             throw new Error("Failed to create VM");
         }
@@ -874,7 +891,7 @@ export async function makeBovineOS(options: BovineOSOptions): Promise<BovineOS> 
     });
 
     let totalLoaded = 0;
-    const filesNeeded = [...runtimeFilesList, ...runtimeFiles];
+    const filesNeeded = [...(options.runtimeFiles ?? runtimeFilesList), ...runtimeFiles];
     // Spawn fetch requests
     const requests = filesNeeded.map(async (file) => {
         const response = await fetch(`${runtimeUrl}/${file}`, options.fetchParams ?? {

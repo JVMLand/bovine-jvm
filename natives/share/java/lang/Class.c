@@ -474,3 +474,9 @@ DECLARE_NATIVE("java/lang", Class, getGenericSignature0, "()Ljava/lang/String;")
 DECLARE_NATIVE("java/lang", Class, getProtectionDomain0, "()Ljava/security/ProtectionDomain;") {
   return value_null(); // TODO
 }
+
+// JDK 24+ no longer passes the caller class to this native.
+DECLARE_NATIVE_OVERLOADED("java/lang", Class, forName0,
+                          "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;", 1) {
+  return Class_forName0_cb0(thread, obj, args, argc);
+}
