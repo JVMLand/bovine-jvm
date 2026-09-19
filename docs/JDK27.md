@@ -1,8 +1,9 @@
 # OpenJDK 27 runtime support
 
 This fork adds experimental OpenJDK 27+35 standard-library support while keeping
-the JDK 23 default. It includes Jaspera's cooperative debugger and Windows build
-patches. This is not a claim of full Java SE conformance; Bovine's existing
+the JDK 23 default. The `codex/jdk27` branch is independent of the debugger,
+which is maintained on `codex/debugger`; `main` merges both branches.
+This is not a claim of full Java SE conformance; Bovine's existing
 limitations (including native libraries, AWT, real parallel threads, and incomplete
 verification) still apply. Preview features are not covered by this migration.
 
